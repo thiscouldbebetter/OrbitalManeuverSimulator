@@ -1,0 +1,619 @@
+<html>
+<body>
+<script type="text/javascript">
+ 
+// main
+ 
+function main()
+{
+	var worldSize = new Coords(1, 1).multiplyScalar(300);
+	var world = new World
+	(
+		worldSize,
+		[
+			new Mover
+			(
+				"Ship", // name
+				"LightGreen", // color
+				1, // mass
+				5, // radius
+				0, // heading
+				worldSize.clone().divide(new Coords(2, 4)), // pos
+				new Coords(1.4, 0) // vel
+			),
+			 
+			new Mover
+			(
+				"Planet", // name
+				"Cyan", // color
+				3000, // mass
+				10, // radius
+				0, // heading
+				worldSize.clone().half(), // pos
+				new Coords(0, 0) // vel
+			),
+		]
+	);
+
+	var universe = new Universe
+	(
+		world
+	);
+
+	universe.initialize();
+}
+ 
+// classes
+ 
+class Coords
+{
+	constructor(x, y)
+	{
+		this.x = x;
+		this.y = y;
+	}
+
+
+	static Instances()
+	{
+		if (Coords._instances == null)
+		{
+			Coords._instances = new Coords_Instances();
+		}
+		return Coords._instances;
+	}
+
+	add(other)
+	{
+		this.x += other.x;
+		this.y += other.y;
+		return this;
+	}
+
+	clone()
+	{
+		return new Coords(this.x, this.y);
+	}
+
+	clear()
+	{
+		this.x = 0;
+		this.y = 0;
+		return this;
+	}
+
+	divide(other)
+	{
+		this.x /= other.x;
+		this.y /= other.y;
+		return this;
+	}
+	 
+	divideScalar(scalar)
+	{
+		this.x /= scalar;
+		this.y /= scalar;
+		return this;
+	}
+
+	half()
+	{
+		return this.divideScalar(2);
+	}
+
+	magnitude()
+	{
+		return Math.sqrt(this.x * this.x + this.y * this.y);
+	}
+
+	multiply(other)
+	{
+		this.x *= other.x;
+		this.y *= other.y;
+		return this;
+	}
+	 
+	multiplyScalar(scalar)
+	{
+		this.x *= scalar;
+		this.y *= scalar;
+		return this;
+	}
+
+	overwriteWith(other)
+	{
+		this.x = other.x;
+		this.y = other.y;
+		return this;
+	}
+	 
+	subtract(other)
+	{
+		this.x -= other.x;
+		this.y -= other.y;
+		return this;
+	}
+}
+
+class Coords_Instances
+{
+	constructor()
+	{
+		this.Zeroes = new Coords(0, 0);
+		this.Ones = new Coords(1, 1);
+	}
+}
+
+class Display
+{
+	constructor(size)
+	{
+		this.size = size;
+		this.colorFore = "Gray";
+		this.colorBack = "Black";
+
+		this._drawPos = new Coords(0, 0);
+	}
+
+	clear()
+	{
+		this.drawRectangle
+		(
+			Coords.Instances().Zeroes, this.size,
+			this.colorBack, this.colorFore
+		);
+	}
+ 
+	drawCircle(center, radius, colorFill, colorBorder, fractionOfFullTurn)
+	{
+		this.graphics.beginPath();
+		if (fractionOfFullTurn == null)
+		{
+			fractionOfFullTurn = 1;
+		}
+		this.graphics.arc(center.x, center.y, radius, 0, Math.PI * 2 * fractionOfFullTurn);
+		 
+		if (colorFill != null)
+		{
+			this.graphics.fillStyle = colorFill;
+			this.graphics.fill();
+		}
+		 
+		if (colorBorder != null)
+		{
+			this.graphics.strokeStyle = colorBorder;
+			this.graphics.stroke();
+		}
+	}
+
+	drawLine(fromPos, offset, color)
+	{
+		this.graphics.beginPath();
+		this.graphics.moveTo(fromPos.x, fromPos.y);
+		var toPos = this._drawPos.overwriteWith(fromPos).add(offset);
+		this.graphics.lineTo(toPos.x, toPos.y);
+		this.graphics.strokeStyle = color;
+		this.graphics.lineWidth = 2;
+		this.graphics.stroke();
+	}
+
+	drawPath(pointsOnPath, color)
+	{
+		this.graphics.strokeStyle = color;
+		 
+		this.graphics.beginPath();
+		 
+		var point = pointsOnPath[0];
+		this.graphics.moveTo(point.x, point.y);
+		 
+		for (var i = 1; i < pointsOnPath.length; i++)
+		{
+			var point = pointsOnPath[i];
+			this.graphics.lineTo(point.x, point.y);
+			this.graphics.stroke();
+		}
+	}
+	 
+	drawRectangle(pos, size, colorFill, colorBorder)
+	{
+		if (colorFill != null)
+		{
+			this.graphics.fillStyle = colorFill;
+			this.graphics.fillRect(pos.x, pos.y, size.x, size.y);
+		}
+
+		if (colorBorder != null)
+		{
+			this.graphics.strokeStyle = colorBorder;
+			this.graphics.strokeRect(pos.x, pos.y, size.x, size.y);
+		}
+	}
+	 
+	drawText(text, fontHeight, pos, colorFill, colorBorder)
+	{
+		this.graphics.font = fontHeight + "px sans-serif";
+		 
+		if (colorBorder != null)
+		{
+			this.graphics.strokeStyle = colorBorder;
+			this.graphics.strokeText(text, pos.x, pos.y + fontHeight);
+		}
+	 
+		if (colorFill != null)
+		{
+			this.graphics.fillStyle = colorFill;
+			this.graphics.fillText(text, pos.x, pos.y + fontHeight);
+		}
+	}
+	 
+	initialize()
+	{
+		var canvas = document.createElement("canvas");
+		canvas.width = this.size.x;
+		canvas.height = this.size.y;
+		 
+		this.graphics = canvas.getContext("2d");
+		 
+		document.body.appendChild(canvas);
+	}
+}
+ 
+class InputHelper
+{
+	constructor()
+	{
+		this.keyPressed = null;
+	}
+
+	initialize()
+	{
+		document.body.onkeydown = this.handleEventKeyDown.bind(this);
+		document.body.onkeyup = this.handleEventKeyUp.bind(this);
+	}
+ 
+	// events
+	 
+	handleEventKeyDown(event)
+	{
+		this.keyPressed = event.key;
+	}
+	 
+	handleEventKeyUp(event)
+	{
+		this.keyPressed = null;
+	}
+}
+ 
+class Maneuver
+{
+	constructor(pos, polar)
+	{
+		this.pos = pos;
+		this.polar = polar;
+	}
+
+	drawToDisplay(display)
+	{
+		var color = "Yellow";
+		display.drawCircle(this.pos, 3, null, color);
+		display.drawLine
+		(
+		this.pos,
+		this.polar.toCoords(new Coords()).multiplyScalar(32),
+		color
+		);
+	}
+}
+ 
+class Mover
+{
+	constructor(name, color, mass, radius, headingInTurns, pos, vel)
+	{
+		this.name = name;
+		this.color = color;
+		this.mass = mass;
+		this.radius = radius;
+		this.headingInTurns = headingInTurns;
+		this.pos = pos;
+		this.vel = vel;
+
+		this.accel = new Coords(0, 0);
+		this.force = new Coords(0, 0);
+
+		this.trailPoints = [ this.pos.clone() ];
+		this.trailPointsMax = 64;
+
+		this.thrustMax = 1;
+		this.thrustIncrement = 0.05;
+		this.turnRate = 1 / 64;
+
+		this.thrust = .5;
+
+		this.maneuvers = [];
+	}
+
+	drawToDisplay(display)
+	{
+		display.drawPath(this.trailPoints, "LightGray");
+		 
+		for (var i = 0; i < this.maneuvers.length; i++)
+		{
+			var maneuver = this.maneuvers[i];
+			maneuver.drawToDisplay(display);
+		}
+		 
+		display.drawCircle(this.pos, this.radius, this.color, this.color);
+		 
+		var headingIndicatorOffset = new Polar
+		(
+			this.headingInTurns,
+			this.radius * 2
+		).toCoords(new Coords());
+		 
+		display.drawLine
+		(
+			this.pos,
+			headingIndicatorOffset
+		);
+		 
+		if (this.name == "Ship") // hack
+		{
+			var shipDiameter = this.radius * 2;
+			 
+			display.drawText
+			(
+				"Thrust",
+				shipDiameter, // fontHeight
+				new Coords(1, .5).multiplyScalar(shipDiameter), // pos
+				"LightGray", // colorFill
+				"Black" // colorBorder
+			);
+			 
+			var thrustFraction = this.thrust / this.thrustMax;
+			display.drawRectangle
+			(
+				new Coords(1, 2).multiplyScalar(shipDiameter), // pos
+				new Coords(8, 1).multiplyScalar(shipDiameter), // size
+				null, // colorFill
+				"LightGray"
+			);
+			 
+			display.drawRectangle
+			(
+				new Coords(1, 2).multiplyScalar(shipDiameter),
+				new Coords(8 * thrustFraction, 1).multiplyScalar(shipDiameter),
+				"LightGray", // colorFill
+				null
+			);
+		}
+	}
+
+	updateForTimerTick(universe, world)
+	{
+		var trailPointLatest = this.trailPoints[0];
+
+		var distanceFromLastTrailPoint =
+		this.pos.clone().subtract(trailPointLatest).magnitude();
+
+		var trailPointSpacingMin = 16;
+		if (distanceFromLastTrailPoint > trailPointSpacingMin)
+		{
+			if (this.trailPoints.length >= this.trailPointsMax)
+			{
+				this.trailPoints.splice(this.trailPoints.length - 1, 1);
+			}
+		 
+			this.trailPoints.splice(0, 0, this.pos.clone());
+		}
+		 
+		this.accel.overwriteWith
+		(
+			this.force
+		).divideScalar
+		(
+			this.mass
+		);
+		this.vel.add(this.accel);
+		this.pos.add(this.vel);
+	}
+}
+ 
+class Polar
+{
+	constructor(angleInTurns, distance)
+	{
+		this.angleInTurns = angleInTurns;
+		this.distance = distance;
+	}
+
+	toCoords(coordsToOverwrite)
+	{
+		var angleInRadians = 2 * Math.PI * this.angleInTurns;
+		coordsToOverwrite.x = Math.cos(angleInRadians);
+		coordsToOverwrite.y = Math.sin(angleInRadians);
+		return coordsToOverwrite.multiplyScalar(this.distance);
+	}
+}
+ 
+class Universe
+{
+	constructor(world)
+	{
+		this.world = world;
+
+		this.display = new Display(this.world.size);
+		this.inputHelper = new InputHelper();
+	}
+
+	initialize()
+	{
+		this.display.initialize();
+		 
+		var millisecondsPerTimerTick = 100;
+		this.timer = setInterval
+		(
+		this.updateForTimerTick.bind(this),
+		millisecondsPerTimerTick
+		);
+		 
+		this.inputHelper.initialize();
+	}
+
+	updateForTimerTick()
+	{
+		this.world.updateForTimerTick(this);
+	}
+}
+ 
+class World
+{
+	constructor(size, movers)
+	{
+		this.size = size;
+		this.movers = movers;
+	}
+
+	drawToDisplay(display)
+	{
+		display.clear();
+		for (var i = 0; i < this.movers.length; i++)
+		{
+			var mover = this.movers[i];
+			mover.drawToDisplay(display);
+		}
+	}
+	 
+	updateForTimerTick(universe)
+	{
+		var displacement = new Coords();
+		 
+		var gravitationalConstant = .05;
+		 
+		for (var i = 0; i < this.movers.length; i++)
+		{
+			var moverThis = this.movers[i];
+			 
+			for (var j = i + 1; j < this.movers.length; j++)
+			{
+				var moverOther = this.movers[j];
+				 
+				displacement.overwriteWith
+				(
+					moverOther.pos
+				).subtract
+				(
+					moverThis.pos
+				);
+				 
+				var distance = displacement.magnitude();
+				if (distance > 0)
+				{
+					var direction = displacement.divideScalar(distance);
+					 
+					var gravityMagnitude =
+						moverThis.mass
+						* moverOther.mass
+						* gravitationalConstant
+						/ (distance * distance);
+					 
+					moverThis.force.overwriteWith
+					(
+						direction
+					).multiplyScalar
+					(
+						gravityMagnitude
+					);
+					 
+					moverOther.force.overwriteWith
+					(
+						direction
+					).multiplyScalar
+					(
+						0 - gravityMagnitude
+					);
+				}
+			}
+		}
+		 
+		var moverForUser = this.movers[0];
+		var keyPressed = universe.inputHelper.keyPressed;
+		if (keyPressed != null)
+		{
+			if (keyPressed == "Enter")
+			{
+				var thrustPolar = new Polar
+				(
+					moverForUser.headingInTurns,
+					moverForUser.thrust
+				);
+
+				var maneuver = new Maneuver
+				(
+					moverForUser.pos.clone(), thrustPolar
+				);
+
+				moverForUser.maneuvers.push(maneuver);
+				 
+				var thrustForce = thrustPolar.toCoords
+				(
+					new Coords()
+				);
+
+				moverForUser.force.add
+				(
+					thrustForce
+				);
+
+				universe.inputHelper.keyPressed = null;
+			}
+			else if (keyPressed == "ArrowUp")
+			{
+				moverForUser.thrust += moverForUser.thrustIncrement;
+				if (moverForUser.thrust > moverForUser.thrustMax)
+				{
+					moverForUser.thrust = moverForUser.thrustMax;
+				}
+			}
+			else if (keyPressed == "ArrowDown")
+			{
+				moverForUser.thrust -= moverForUser.thrustIncrement;
+				if (moverForUser.thrust < 0)
+				{
+					moverForUser.thrust = 0;
+				}
+			}
+			else if (keyPressed == "ArrowLeft")
+			{
+				moverForUser.headingInTurns -= moverForUser.turnRate;
+				if (moverForUser.headingInTurns < 0)
+				{
+					moverForUser.headingInTurns += 1;
+				}
+			}
+			else if (keyPressed == "ArrowRight")
+			{
+				moverForUser.headingInTurns += moverForUser.turnRate;
+				if (moverForUser.headingInTurns >= 1)
+				{
+					moverForUser.headingInTurns -= 1;
+				}
+			}
+		}
+
+		for (var i = 0; i < this.movers.length; i++)
+		{
+			var mover = this.movers[i];
+			mover.updateForTimerTick(universe, this);
+		}
+
+		this.drawToDisplay(universe.display);
+	}
+}
+ 
+// run
+ 
+main();
+ 
+</script>
+</body>
+</html>
